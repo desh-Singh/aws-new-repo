@@ -16,6 +16,8 @@ from services.pipedrive_service import PipedriveService
 from tasks import process_documents_task
 from celery.result import AsyncResult
 from celery_worker import celery
+import traceback
+
 # --------------------------------------------------
 # ENV SETUP
 # --------------------------------------------------
@@ -160,14 +162,20 @@ def extract_text_pdf(s3_key):
     )
 
     job_id = start["JobId"]
+    max_attempts = 30
+    attempt = 0
 
-    while True:
+    while attempt < max_attempts:
         response = textract.get_document_text_detection(JobId=job_id)
         status = response["JobStatus"]
+        attempt += 1
+        time.sleep(2)
         if status == "SUCCEEDED":
             break
         if status == "FAILED":
             raise Exception("Textract failed")
+        if attempt == max_attempts:
+            raise Exception("Textract timeout")
         time.sleep(2)
 
     text = []
@@ -207,6 +215,10 @@ def index():
 @app.route("/check/<task_id>")
 def check_status_page(task_id):
     return render_template("status.html", task_id=task_id)
+
+@app.route("/health")
+def health():
+    return {"status": "ok"}, 200
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -474,8 +486,8 @@ def upload():
        # return redirect(url_for("check_status", task_id=task_id)) 
 
     except Exception as e:
-        print("UPLOAD ERROR:", e)
-        flash(str(e), "error")
+        traceback.print_exc()
+        flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("index"))
 
 # --------------------------------------------------
