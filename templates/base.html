@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Desh Singh{% endblock %}</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"> 
+
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+<style>
+    .footer-d {
+        display: flex; justify-content: space-between;
+    }
+</style>
+<!-- ================= HEADER ================= -->
+<header class="border-bottom bg-white">
+  <div class="container">
+    <div class="d-flex align-items-center justify-content-between py-3">
+
+      <!-- LOGO -->
+      <a href="https://deshsingh.com" target="_blank" class="d-flex align-items-center text-decoration-none">
+        <img
+          src="{{ url_for('static', filename='images/logo.webp') }}"
+          alt="Desh Singh"
+          height="42"
+        >
+      </a>
+
+      <!-- MENU -->
+      <nav>
+        <a href="https://deshsingh.com" target="_blank" class="me-3 text-dark text-decoration-none">
+          Home
+        </a>
+        <a href="https://deshsingh.com/home1#section-D7P980scl4" target="_blank" class="me-3 text-dark text-decoration-none">
+          How it work 
+        </a>
+        <a href="https://deshsingh.com/home1#section-2KyshaEwv9" target="_blank" class="text-dark text-decoration-none">
+          Faq
+        </a>
+         <!-- <div class="d-flex justify-content-end mb-3">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+                </div> -->
+      </nav>
+
+    </div>
+  </div>
+</header>
+
+<!-- ================= PAGE CONTENT ================= -->
+<main class="py-4">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-top bg-light mt-5">
+  <div class="container py-4 text-center text-muted footer-d">
+
+    <img
+      src="{{ url_for('static', filename='images/logo.webp') }}"
+      alt="Desh Singh"
+      height="36"
+      class="mb-2"
+    >
+
+   
+
+    <small>
+      © 2026 Desh Singh. All rights reserved.
+    </small>
+
+  </div>
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+<h2>Processing Status</h2>
+<p id="status">Checking...</p>
+
+<script>
+    const taskId = "{{ task_id }}";
+
+    function checkStatus() {
+        fetch(`/status/${taskId}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("status").innerText = data.status;
+
+            if (data.status === "Processing...") {
+                setTimeout(checkStatus, 3000);
+            }
+        });
+    }
+
+    checkStatus();
+</script>

@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Document Upload | Desh Singh{% endblock %}
+{% block content %}
+<style>
+    body {
+        background: linear-gradient(135deg, #eef2ff, #f8fafc);
+        transition: all 0.3s ease;
+    }
+
+    body.dark-mode {
+        background: #020617;
+        color: #e5e7eb;
+    }
+
+    .card {
+        border-radius: 18px;
+        border: none;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    body.dark-mode .card {
+        background: #020617;
+    }
+
+    .upload-box {
+        border: 2px dashed #c7d2fe;
+        border-radius: 14px;
+        padding: 22px;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    body.dark-mode .upload-box {
+        background: #020617;
+        border-color: #334155;
+    }
+
+    .upload-box.dragover {
+        background: #eef2ff;
+        border-color: #4f46e5;
+    }
+
+    .upload-hint {
+        font-size: 13px;
+        color: #64748b;
+        margin-top: 6px;
+    }
+
+    .preview {
+        margin-top: 10px;
+        font-size: 14px;
+    }
+
+    .preview img {
+        max-width: 50px;
+        margin-top: 8px;
+        border-radius: 10px;
+    }
+
+    .progress {
+        height: 6px;
+        margin-top: 10px;
+    }
+
+    .required::after {
+        content: " *";
+        color: red;
+    }
+
+    .iti.iti--allow-dropdown.iti--separate-dial-code.iti--show-flags {
+        width: 100%;
+    }
+</style>
+
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <!-- FLASH MESSAGE -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+            <div class="card p-4">
+                <h3 class="text-center mb-4">Business Document Upload live</h3> 
+
+                <form action="/upload" method="POST" enctype="multipart/form-data" onsubmit="return handleSubmit()">
+
+                    <!-- EMAIL -->
+                    <div class="mb-3">
+                        <label class="form-label required">Email</label>
+                        <input type="email" name="email" class="form-control" value="test@gmail.com" required>
+                    </div>
+
+                    <!-- PHONE -->
+                    <div class="mb-4">
+                        <label class="form-label required">Phone</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            value="9998989789"
+                            name="phone"
+                            class="form-control"
+                            placeholder="Enter 10 digit phone number"
+                            maxlength="10"
+                            inputmode="numeric"
+                            required
+                            >
+                    </div>
+
+                    <hr>
+
+                    <!-- UPLOAD FIELDS -->
+                    <div id="uploads"></div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg">
+                            <span id="btnText">Submit Documents</span>
+                            <span id="loader" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+            <p class="text-center text-muted mt-3">
+                Secure automated document processing powered by AWS Textract
+            </p>
+
+        </div>
+    </div>
+</div> 
+<script>
+    const uploadFields = [
+        { label: "Drivers License or Passport", name: "driving_license", required: true, multiple: false },
+        { label: "Voided Check / Bank Letter", name: "bank_doc", required: true, multiple: false },
+        { label: "Tax Document", name: "tax_doc", required: false, multiple: false },
+        { label: "Bank / Processing Statement", name: "bank_statement", required: false, multiple: false },
+        { label: "Pictures", name: "pictures", required: false, multiple: true },
+        { label: "Other/Supporting Document", name: "other_doc", required: false, multiple: true },
+    ];
+
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+
+    const uploadsContainer = document.getElementById("uploads");
+
+    uploadFields.forEach(field => {
+        uploadsContainer.innerHTML += `
+                <div class="mb-4">
+                <label class="form-label ${field.required ? 'required' : ''}">${field.label}</label>
+                <div class="upload-box" data-multiple="${field.multiple}"   >
+                    <strong>Drag & drop file here </strong><br>or click to browse
+                    <div class="upload-hint">
+                    PDF, JPG, PNG only · Max 10MB (AWS Textract limit)
+                    (${field.multiple ? "Attach Multiple Files" : "Single File"})
+                    </div>
+                    <input type="file" 
+                    name="${field.name}${field.multiple ? '[]' : ''}" ${field.multiple ? "multiple" : ""}    hidden>
+                    <div class="preview"></div>
+                    <div class="progress d-none">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"></div>
+                    </div>
+                </div>
+                </div>
+            `;
+    });
+
+
+    /* ============================ Phone number masking ========================= */
+    const phoneInput = document.getElementById("phone");
+
+  phoneInput.addEventListener("input", function () {
+    // remove non-digits
+    this.value = this.value.replace(/\D/g, "");
+
+    // limit to 10 digits
+    if (this.value.length > 10) {
+      this.value = this.value.slice(0, 10);
+    }
+  });
+      
+    document.querySelectorAll(".upload-box").forEach(box => {
+        const input = box.querySelector("input");
+        const preview = box.querySelector(".preview");
+        const progress = box.querySelector(".progress");
+        const bar = box.querySelector(".progress-bar");
+
+        box.addEventListener("click", () => input.click());
+
+        box.addEventListener("dragover", e => {
+            e.preventDefault();
+            box.classList.add("dragover");
+        });
+
+        box.addEventListener("dragleave", () => box.classList.remove("dragover"));
+
+        box.addEventListener("drop", e => {
+            e.preventDefault();
+            box.classList.remove("dragover");
+            input.files = e.dataTransfer.files;
+            validate(input);
+        });
+
+        input.addEventListener("change", () => validate(input));
+
+
+        function validate(input) {
+            const box = input.closest(".upload-box");
+            const isMultiple = box.dataset.multiple === "true";
+            console.log(isMultiple);
+            preview.innerHTML = "";
+            progress.classList.add("d-none");
+            bar.style.width = "0%";
+
+            let files = Array.from(input.files);
+            if (!files.length) return;
+
+            // ❗ If single-file field, force only 1 file
+            if (!isMultiple && files.length > 1) {
+                alert("This field allows only a single file.");
+                input.value = "";
+                return;
+            }
+
+            // === VALIDATION ===
+            for (const file of files) {
+                if (!allowedTypes.includes(file.type)) {
+                    alert(`"${file.name}" is not allowed. Only PDF, JPG, PNG allowed.`);
+                    input.value = "";
+                    preview.innerHTML = "";
+                    return;
+                }
+
+                if (file.size > MAX_SIZE) {
+                    alert(`"${file.name}" exceeds 10MB (AWS Textract limit).`);
+                    input.value = "";
+                    preview.innerHTML = "";
+                    return;
+                }
+            }
+
+            // === PREVIEW ===
+            files.forEach(file => {
+                if (file.type.startsWith("image")) {
+                    const img = document.createElement("img");
+                    img.src = URL.createObjectURL(file);
+                    img.style.maxWidth = "50px";
+                    img.style.margin = "6px";
+                    img.style.borderRadius = "8px";
+                    preview.appendChild(img);
+                } else {
+                    const row = document.createElement("div");
+                    row.textContent = `📄 ${file.name}`;
+                    preview.appendChild(row);
+                }
+            });
+
+            // === PROGRESS ===
+            progress.classList.remove("d-none");
+
+            let p = 0;
+            const interval = setInterval(() => {
+                p += 20;
+                bar.style.width = p + "%";
+
+                if (p >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => progress.classList.add("d-none"), 300);
+                }
+            }, 200);
+        }
+ 
+    });
+
+    function handleSubmit() {
+        document.getElementById("submitBtn").disabled = true;
+        document.getElementById("loader").classList.remove("d-none");
+        document.getElementById("btnText").textContent = "Processing...";
+        return true;
+    }
+
+    // function handleSubmit() {
+    //     const btn = document.getElementById("submitBtn");
+    //     const loader = document.getElementById("loader");
+    //     const btnText = document.getElementById("btnText");
+    //     const globalSuccess = document.getElementById("globalSuccess");
+
+    //     // Validate phone
+    //     if (!iti.isValidNumber()) {
+    //         alert("Please enter a valid phone number.");
+    //         phoneInput.focus();
+    //         return false;
+    //     }
+
+    //     // Replace value with full international format (+1xxxxxxxx)
+    //     phoneInput.value = iti.getNumber();
+
+    //     btn.disabled = true;
+    //     loader.classList.remove("d-none");
+    //     btnText.textContent = "Processing...";
+
+    //     setTimeout(() => {
+    //         if (globalSuccess) {
+    //             globalSuccess.classList.remove("d-none");
+    //         }
+    //     }, 800);
+
+    //     return true;
+    // }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+    }
+</script>
+
+
+{% endblock %}
