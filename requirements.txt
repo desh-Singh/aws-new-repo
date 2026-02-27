@@ -7,3 +7,5 @@ python-dotenv
 pillow>=10.0
 img2pdf>=0.6.3
 pypdf>=4.0
+celery
+redis 
