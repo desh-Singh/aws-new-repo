@@ -1,36 +1,67 @@
 from celery_worker import celery
-from services.extraction_service import extract_text_from_s3
-from services.document_service import download_from_s3, convert_and_merge
-from services.pipedrive_service import PipedriveService
 from gpt_parser import parse_documents_with_gpt
+from geo import geocode_address
+from services.pipedrive_service import PipedriveService
+import json
 
+service = PipedriveService()
 
 @celery.task(bind=True, max_retries=3)
 def process_documents_task(self, result, files_payload):
+    try:
+        # ================= GPT =================
+        gpt_payload = {
+            "email": result.get("email"),
+            "phone": result.get("phone"),
+            "documents": {
+                "driver_license": result["documents"].get("ID.pdf"),
+                "bank_document": result["documents"].get("VC.pdf"),
+                "tax_document": result["documents"].get("TaxID.pdf"),
+                "other_document": result["documents"].get("Statement.pdf")
+            }
+        }
 
-    service = PipedriveService()
+        final_data = parse_documents_with_gpt(gpt_payload)
+        final_data["files"] = files_payload
 
-    # STEP 1 — EXTRACT
-    extracted_text = extract_text_from_s3(files_payload)
+        # ================= GEO =================
+        home_geo = geocode_address(final_data.get("home_address"), prefix="home")
+        if home_geo:
+            final_data.update(home_geo)
 
-    # STEP 2 — OPENAI
-    structured_data = parse_documents_with_gpt(extracted_text)
+        business_geo = geocode_address(final_data.get("business_address"), prefix="business")
+        if business_geo:
+            final_data.update(business_geo)
 
-    # STEP 3 — CREATE DEAL
-    ids = service.process_lead(structured_data)
+        # ================= PIPEDRIVE =================
+        pipedrive_ids = service.process_lead(final_data)
 
-    deal_id = ids["deal_id"]
-    person_id = ids["person_id"]
-    org_id = ids["org_id"]
+        deal_id = pipedrive_ids["deal_id"]
+        person_id = pipedrive_ids["person_id"]
+        org_id = pipedrive_ids["org_id"]
 
-    # STEP 4 — DOCUMENT PROCESSING
-    local_files = download_from_s3(files_payload)
-    final_pdfs = convert_and_merge(local_files)
-
-    # STEP 5 — ATTACH
-    for pdf_path in final_pdfs:
-        service.attach_file_from_path(
-            deal_id, person_id, org_id, pdf_path
+        # 🔥 trigger attachment separately
+        attach_documents_task.delay(
+            deal_id,
+            person_id,
+            org_id,
+            files_payload
         )
 
-    return {"status": "completed", "deal_id": deal_id}
+        return {"status": "completed", "deal_id": pipedrive_ids["deal_id"]}
+
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    
+@celery.task(bind=True, max_retries=3)
+def attach_documents_task(self, deal_id, person_id, org_id, files_payload):
+    try:
+        service = PipedriveService()
+
+        for file in files_payload:
+            service.attach_file(deal_id, person_id, org_id, file)
+
+        return {"status": "documents_attached"}
+
+    except Exception as e:
+        raise self.retry(exc=e, countdown=10)
