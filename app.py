@@ -216,7 +216,7 @@ def index():
 def check_status_page(task_id):
     return render_template("status.html", task_id=task_id)
 
-@app.route("/status/<task_id>")
+@app.route("/status/<task_id>") 
 def check_status(task_id):
     task_result = AsyncResult(task_id, app=celery)
 
