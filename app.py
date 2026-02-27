@@ -27,9 +27,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
 
 S3_BUCKET = os.getenv("S3_BUCKET", "desh-ocr-uploads")
-REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/26068750/uqzmxwc/"
-
+REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1") 
 MAX_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXT = {"pdf", "jpg", "jpeg", "png"}
 service = PipedriveService()
@@ -282,7 +280,14 @@ def upload():
                 temp_pdf.close()
 
                 # 👉 UTIL FUNCTION
-                images_to_single_pdf(images, temp_pdf.name)
+
+                try:
+                    images_to_single_pdf(images, temp_pdf.name)
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    raise Exception(f"Image merge failed: {str(e)}")
+               # images_to_single_pdf(images, temp_pdf.name)
 
                 # upload combined pdf
                 with open(temp_pdf.name, "rb") as f:
@@ -319,7 +324,15 @@ def upload():
                 temp_pdf.close()
 
                 # 👉 UTIL FUNCTION
-                merge_images_and_pdfs(files, temp_pdf.name)
+
+
+                try:
+                    merge_images_and_pdfs(files, temp_pdf.name)
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    raise Exception(f"PDF merge failed: {str(e)}")
+               # merge_images_and_pdfs(files, temp_pdf.name)
 
                 with open(temp_pdf.name, "rb") as f:
                     s3_key = upload_to_s3(
@@ -426,40 +439,7 @@ def upload():
                 "raw_text": raw_text,
                 "id_data": id_data
             }
-
-            # s3_key = upload_to_s3(file, field)
-
-            # # OCR
-            # raw_text = extract_text(file, s3_key)
-
-            # print("OCR END for", field, "| Text length:", len(raw_text))
-
-            # id_data = None
-            # if field == "driving_license" and is_image(file):
-            #     id_data = extract_id_fields_from_textract(s3_key)
-
-            # # 2️⃣ IMAGE → PDF (AFTER OCR)
-            #     temp_pdf = NamedTemporaryFile(delete=False, suffix=".pdf")
-            #     temp_pdf.close()
-
-            #     image_to_pdf(file, temp_pdf.name)
-
-            #     with open(temp_pdf.name, "rb") as f:
-            #         s3_pdf_key = upload_to_s3(
-            #             f,
-            #             field,
-            #             filename=final_name   # ID.pdf / VC.pdf etc
-            #         )
-
-            #     os.remove(temp_pdf.name)
-
-            #     result["documents"][final_name] = {
-            #         "s3_keys": [s3_pdf_key],   # ✅ PDF link only
-            #         "raw_text": raw_text,
-            #         "id_data": id_data
-            #     }
-
-            #
+ 
 
         # ================= FILE LINKS =================
         files_payload = []
