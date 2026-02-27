@@ -8,10 +8,19 @@
         fetch(`/status/${taskId}`)
         .then(res => res.json())
         .then(data => {
-            document.getElementById("status").innerText = data.status;
 
-            if (data.status === "Processing...") {
+            if (data.status === "processing") {
+                document.getElementById("status").innerText = "Processing...";
                 setTimeout(checkStatus, 3000);
+            }
+
+            else if (data.status === "completed") {
+                document.getElementById("status").innerHTML =
+                    "✅ Completed! Deal ID: " + data.deal_id;
+            }
+
+            else if (data.status === "failed") {
+                document.getElementById("status").innerText = "❌ Failed";
             }
         });
     }

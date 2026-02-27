@@ -216,6 +216,27 @@ def index():
 def check_status_page(task_id):
     return render_template("status.html", task_id=task_id)
 
+@app.route("/status/<task_id>")
+def check_status(task_id):
+    task_result = AsyncResult(task_id, app=celery)
+
+    if task_result.state == "PENDING":
+        return {"status": "processing"}
+
+    elif task_result.state == "SUCCESS":
+        result = task_result.result
+        return {
+            "status": result.get("status"),
+            "deal_id": result.get("deal_id")
+        }
+
+    elif task_result.state == "FAILURE":
+        return {"status": "failed"}
+
+    else:
+        return {"status": task_result.state}
+    
+
 @app.route("/health")
 def health():
     return {"status": "ok"}, 200
