@@ -77,7 +77,7 @@ def is_image(file):
 def is_pdf(file):
     return file.mimetype == "application/pdf"
 
-def upload_to_s3(file_obj, field_name, filename=None):
+def upload_to_s3(file_obj, field_name,deal_folder, filename=None):
     """
     file_obj : FileStorage OR file-like object
     filename : optional, explicit filename (recommended)
@@ -93,8 +93,8 @@ def upload_to_s3(file_obj, field_name, filename=None):
 
     base = FIELD_FILENAME_MAP.get(field_name, field_name)
     final_filename = f"{base}{ext}"
-
-    s3_key = f"uploads/{uuid.uuid4()}_{final_filename}"
+    s3_key = f"uploads/{deal_folder}/{final_filename}"
+    // s3_key = f"uploads/{uuid.uuid4()}_{final_filename}"
    # s3_key = f"uploads/{final_filename}"
 
     s3.upload_fileobj(
@@ -242,9 +242,13 @@ def health():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
+
+        phone = request.form.get("phone")
+        deal_folder = f"{phone}_{uuid.uuid4().hex[:4]}"
+
         result = {
             "email": request.form.get("email"),
-            "phone": request.form.get("phone"),
+            "phone": phone,
             "documents": {}
         }
 
@@ -294,6 +298,7 @@ def upload():
                     s3_key = upload_to_s3(
                         f,
                         "pictures",
+                        deal_folder,
                         filename="Pics.pdf"   # 👈 EXPLICIT
                     )
                 os.remove(temp_pdf.name)
@@ -338,6 +343,7 @@ def upload():
                     s3_key = upload_to_s3(
                         f,
                         "other_doc",
+                        deal_folder,
                         filename="SupportingDoc.pdf"
                     )
 
@@ -379,7 +385,7 @@ def upload():
 
                 # 2️⃣ Upload IMAGE for OCR
                 with open(tmp_img.name, "rb") as f:
-                    s3_image_key = upload_to_s3(f, field)
+                    s3_image_key = upload_to_s3(f, field, deal_folder, filename=file.filename)
 
                 # 3️⃣ OCR on IMAGE
                 raw_text = extract_text_image(s3_image_key)
@@ -399,6 +405,7 @@ def upload():
                     s3_pdf_key = upload_to_s3(
                         f,
                         field,
+                        deal_folder,
                         filename=final_name
                     )
 
@@ -417,6 +424,7 @@ def upload():
                 s3_pdf_key = upload_to_s3(
                     file,
                     field,
+                     deal_folder,
                     filename=final_name
                 )
 
