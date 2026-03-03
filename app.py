@@ -17,14 +17,22 @@ from tasks import process_documents_task
 from celery.result import AsyncResult
 from celery_worker import celery
 import traceback
-
+import logging
+from logging.handlers import RotatingFileHandler
 # --------------------------------------------------
 # ENV SETUP
 # --------------------------------------------------
+
+
+
+
+
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+
+
 
 S3_BUCKET = os.getenv("S3_BUCKET", "desh-ocr-uploads")
 REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1") 
@@ -44,6 +52,31 @@ session = boto3.Session(
 
 s3 = session.client("s3")
 textract = session.client("textract")
+
+
+
+# --------------------------------------------------
+# LOGGING SETUP
+# --------------------------------------------------
+
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+log_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "app.log"),
+    maxBytes=5 * 1024 * 1024,  # 5MB
+    backupCount=5
+)
+
+log_handler.setLevel(logging.ERROR)
+
+formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)s | %(message)s"
+)
+log_handler.setFormatter(formatter)
+
+app.logger.addHandler(log_handler)
+app.logger.setLevel(logging.ERROR)
 
 # --------------------------------------------------
 # FIELD CONFIG
@@ -288,7 +321,7 @@ def upload():
                 try:
                     images_to_single_pdf(images, temp_pdf.name)
                 except Exception as e: 
-                    traceback.print_exc()
+                    app.logger.error("Upload Error", exc_info=True)
                     raise Exception(f"Image merge failed: {str(e)}")
                # images_to_single_pdf(images, temp_pdf.name)
 
@@ -333,7 +366,7 @@ def upload():
                 try:
                     merge_images_and_pdfs(files, temp_pdf.name)
                 except Exception as e: 
-                    traceback.print_exc()
+                    app.logger.error("Upload Error", exc_info=True)
                     raise Exception(f"PDF merge failed: {str(e)}")
                # merge_images_and_pdfs(files, temp_pdf.name)
 
@@ -493,7 +526,7 @@ def upload():
        # return redirect(url_for("check_status", task_id=task_id)) 
 
     except Exception as e:
-        traceback.print_exc()
+        app.logger.error("Upload Error", exc_info=True)
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("index"))
 
