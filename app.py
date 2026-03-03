@@ -94,7 +94,7 @@ def upload_to_s3(file_obj, field_name,deal_folder, filename=None):
     base = FIELD_FILENAME_MAP.get(field_name, field_name)
     final_filename = f"{base}{ext}"
     s3_key = f"uploads/{deal_folder}/{final_filename}"
-    // s3_key = f"uploads/{uuid.uuid4()}_{final_filename}"
+    # s3_key = f"uploads/{uuid.uuid4()}_{final_filename}"
    # s3_key = f"uploads/{final_filename}"
 
     s3.upload_fileobj(
