@@ -36,6 +36,13 @@ def safe_json_load(content: str):
 
 
 def parse_documents_with_gpt(payload):
+
+    documents = payload.get("documents") or {}
+    driver_license = documents.get("driver_license") or {}
+    bank_document = documents.get("bank_document") or {}
+    tax_document = documents.get("tax_document") or {}
+    other_document = documents.get("other_document") or {}
+
     prompt = f"""
 You are an expert KYC and business onboarding data extractor.
 
@@ -169,32 +176,32 @@ Sales Rep Name: {payload.get("sales_rep_name")}
 
 Driver License OCR (Raw):
 <<<
-{payload["documents"].get("driver_license", {}).get("raw_text", "")}
+{driver_license.get("raw_text", "")}
 >>>
 
 Driver License Extracted ID Data (High Confidence):
 <<<
-{json.dumps(payload["documents"].get("driver_license", {}).get("id_data", {}), indent=2)}
+{json.dumps(driver_license.get("id_data", {}), indent=2)}
 >>>
 
 Bank Document OCR:
 <<<
-{payload["documents"].get("bank_document", {}).get("raw_text", "")}
+{bank_document.get("raw_text", "")}
 >>>
 
 Tax Document OCR:
 <<<
-{payload["documents"].get("tax_document", {}).get("raw_text", "")}
+{tax_document.get("raw_text", "")}
 >>>
 
 Other Document OCR:
 <<<
-{payload["documents"].get("other_document", {}).get("raw_text", "")}
+{other_document.get("raw_text", "")}
 >>>
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a precise data extraction engine."},
             {"role": "user", "content": prompt}

@@ -287,8 +287,7 @@ def upload():
 
                 try:
                     images_to_single_pdf(images, temp_pdf.name)
-                except Exception as e:
-                    import traceback
+                except Exception as e: 
                     traceback.print_exc()
                     raise Exception(f"Image merge failed: {str(e)}")
                # images_to_single_pdf(images, temp_pdf.name)
@@ -333,8 +332,7 @@ def upload():
 
                 try:
                     merge_images_and_pdfs(files, temp_pdf.name)
-                except Exception as e:
-                    import traceback
+                except Exception as e: 
                     traceback.print_exc()
                     raise Exception(f"PDF merge failed: {str(e)}")
                # merge_images_and_pdfs(files, temp_pdf.name)
@@ -466,10 +464,10 @@ def upload():
             "phone": result.get("phone"),
             "sales_rep_name": result.get("sales_rep_name"),
             "documents": {
-                "driver_license": result["documents"].get("ID.pdf"),
-                "bank_document": result["documents"].get("VC.pdf"),
-                "tax_document": result["documents"].get("TaxID.pdf"),
-                "other_document": result["documents"].get("Statement.pdf")
+                "driver_license": result["documents"].get("ID.pdf") or {},
+                "bank_document": result["documents"].get("VC.pdf") or {},
+                "tax_document": result["documents"].get("TaxID.pdf") or {},
+                "other_document": result["documents"].get("Statement.pdf") or {},
             }
         }
 
